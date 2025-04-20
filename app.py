@@ -4,6 +4,7 @@ import os
 import base64
 import uuid
 from PyPDF2 import PdfReader
+from datetime import datetime
 
 # Configure API
 genai.configure(api_key=st.secrets["API_KEY"])
