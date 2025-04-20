@@ -20,7 +20,7 @@ def next_setup_step():
     st.session_state.setup_step += 1
 
 def show_onboarding():
-    st.title("🏢 Company Onboarding")
+    st.title("🏢 Organization Details")
 
     if st.session_state.setup_step == 1:
         company_name = st.text_input("Enter your company name")
