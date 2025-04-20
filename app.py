@@ -1,6 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import os
+import base64
 import uuid
 from PyPDF2 import PdfReader
 import streamlit.components.v1 as components
@@ -10,61 +11,79 @@ from datetime import datetime
 genai.configure(api_key=st.secrets["API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-pro")
 
-# Initialize state
+# Initialize session state
 if "setup_step" not in st.session_state:
     st.session_state.setup_step = 1
     st.session_state.company_data = {}
     st.session_state.onboarding_messages = []
 
-def onboarding_chat_display():
+# Save a message to onboarding chat
+def add_onboarding_message(sender, text):
+    st.session_state.onboarding_messages.append({"sender": sender, "text": text})
+
+# Main onboarding function
+def show_onboarding():
     st.title("📚 VD - Compliance & Legal Assistant")
+
+    # Render chat-like onboarding
     for msg in st.session_state.onboarding_messages:
-        st.markdown(f"**🧑:** {msg['user']}")
-        if "bot" in msg:
-            st.markdown(f"**🤖:** {msg['bot']}")
+        icon = "🦁" if msg["sender"] == "user" else "🤖"
+        st.markdown(f"{icon} : {msg['text']}")
 
-    current_step = st.session_state.setup_step
-
-    if current_step == 1:
-        prompt = "What's your company name?"
-        user_input = st.chat_input(prompt)
+    # Step 1: Company Name
+    if st.session_state.setup_step == 1:
+        user_input = st.text_input("", placeholder="Enter your company name", key="company_name_input")
         if user_input:
-            st.session_state.onboarding_messages.append({"user": user_input, "bot": "Great, and which sector or field are you in?"})
-            st.session_state.company_data["company_name"] = user_input
+            st.session_state.company_data["company_name"] = user_input.strip()
+            add_onboarding_message("user", user_input)
+            add_onboarding_message("bot", "Great, and which sector or field are you in?")
             st.session_state.setup_step += 1
-            st.rerun()
+            st.experimental_rerun()
 
-    elif current_step == 2:
-        prompt = "Which sector or field is your company in?"
-        user_input = st.chat_input(prompt)
+    # Step 2: Sector
+    elif st.session_state.setup_step == 2:
+        user_input = st.text_input("", placeholder="Enter your sector (e.g., IT, Healthcare)", key="sector_input")
         if user_input:
-            st.session_state.onboarding_messages.append({"user": user_input, "bot": "Got it. Is your company new or established?"})
-            st.session_state.company_data["sector"] = user_input
+            st.session_state.company_data["sector"] = user_input.strip()
+            add_onboarding_message("user", user_input)
+            add_onboarding_message("bot", "Got it. Is your company new or established?")
             st.session_state.setup_step += 1
-            st.rerun()
+            st.experimental_rerun()
 
-   # Step 3: New or Established (Dropdown)
-elif st.session_state.setup_step == 3:
-    st.session_state.status = st.selectbox("Is your company new or established?", ["New", "Established"], key="status_select")
-    if st.button("Next", key="next3"):
-        st.session_state.company_data["status"] = st.session_state.status
-        next_step()
+    # Step 3: New or Established (dropdown)
+    elif st.session_state.setup_step == 3:
+        status = st.selectbox("", ["New", "Established"], key="status_select")
+        if status:
+            st.session_state.company_data["status"] = status
+            add_onboarding_message("user", status)
+            if status == "Established":
+                add_onboarding_message("bot", "When was the company established? (MM/DD/YYYY)")
+            else:
+                add_onboarding_message("bot", "Awesome. Let's begin!")
+            st.session_state.setup_step += 1
+            st.experimental_rerun()
 
-# Step 4: Date (if Established)
-elif st.session_state.setup_step == 4:
-    if st.session_state.company_data["status"] == "Established":
-        date_input = st.text_input("When was the company established? (MM/DD/YYYY)", key="established_date_text")
-        if st.button("Next", key="next4"):
-            try:
-                parsed_date = datetime.strptime(date_input.strip(), "%m/%d/%Y")
-                st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
-                next_step()
-            except ValueError:
-                st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
-    else:
-        next_step()
+    # Step 4: Date if Established
+    elif st.session_state.setup_step == 4:
+        if st.session_state.company_data.get("status") == "Established":
+            user_input = st.text_input("", placeholder="MM/DD/YYYY", key="date_input")
+            if user_input:
+                try:
+                    parsed_date = datetime.strptime(user_input.strip(), "%m/%d/%Y")
+                    st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
+                    add_onboarding_message("user", user_input)
+                    add_onboarding_message("bot", "✅ Thanks! Launching the assistant...")
+                    st.session_state.setup_step += 1
+                    st.experimental_rerun()
+                except ValueError:
+                    st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
+        else:
+            add_onboarding_message("bot", "✅ Thanks! Launching the assistant...")
+            st.session_state.setup_step += 1
+            st.experimental_rerun()
 
-    elif current_step == 5:
+    # Step 5: Save to local storage
+    elif st.session_state.setup_step == 5:
         components.html(f"""
             <script>
                 const data = {st.session_state.company_data};
@@ -72,17 +91,14 @@ elif st.session_state.setup_step == 4:
                 window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: true }}, '*');
             </script>
         """, height=0)
-        st.session_state.onboarding_done = True
-        st.rerun()
+        st.experimental_rerun()
 
-# Run onboarding if not done
+# Onboarding before chat
 if st.session_state.get("setup_step", 1) < 6:
-    onboarding_chat_display()
+    show_onboarding()
     st.stop()
 
-# ================= Main App =================
-
-# System prompt
+# System prompt setup
 system_prompt = {
     "role": "user",
     "parts": """
@@ -120,7 +136,6 @@ if "uploaded_docs" not in st.session_state:
 if "uploaded_texts" not in st.session_state:
     st.session_state["uploaded_texts"] = {}
 
-# UI
 st.title("📚 VD - Compliance & Legal Assistant")
 st.markdown("💼 I can help with regulations, drafting documents, summaries, and more.")
 
@@ -130,13 +145,14 @@ if st.button("🗑️ Reset Chat"):
     st.session_state["uploaded_texts"] = {}
     st.rerun()
 
-# Chat history
+# Display chat history
 for msg in st.session_state["messages"][1:]:
     role = "🧑" if msg["role"] == "user" else "🤖"
     st.markdown(f"**{role}:** {msg['parts']}")
 
 # Chat input
-user_input = st.chat_input("💬 How can I assist you today?")
+user_input = st.text_input("💬 How can I assist you today?", key=f"chat_input_{len(st.session_state['messages'])}")
+
 if user_input and not st.session_state["input_submitted"]:
     st.session_state["messages"].append({"role": "user", "parts": user_input})
     try:
@@ -155,7 +171,7 @@ if user_input and not st.session_state["input_submitted"]:
 if st.session_state["input_submitted"]:
     st.session_state["input_submitted"] = False
 
-# PDF Upload
+# PDF upload
 uploaded_file = st.file_uploader("📄 Upload a PDF", type=["pdf"])
 if uploaded_file:
     file_name = uploaded_file.name
@@ -171,13 +187,12 @@ if uploaded_file:
         st.session_state["uploaded_texts"][file_name] = extracted
         st.rerun()
 
-# Floating preview
+# Floating preview panel
 if st.session_state["uploaded_docs"]:
     preview_html = "<div id='right-panel'><h4>📄 Uploaded Docs</h4>"
     for doc in st.session_state["uploaded_docs"]:
         preview_html += f"<b>📘 {doc}</b><div class='pdf-preview'>{st.session_state['uploaded_texts'][doc][:3000]}</div>"
     preview_html += "</div>"
-
     st.markdown("""
         <style>
             #right-panel {
@@ -201,5 +216,4 @@ if st.session_state["uploaded_docs"]:
             }
         </style>
     """, unsafe_allow_html=True)
-
     st.markdown(preview_html, unsafe_allow_html=True)
