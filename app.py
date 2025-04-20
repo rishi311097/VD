@@ -4,7 +4,6 @@ import os
 import base64
 import uuid
 from PyPDF2 import PdfReader
-# from datetime import datetime
 
 # Configure API
 genai.configure(api_key=st.secrets["API_KEY"])
@@ -41,32 +40,54 @@ if "messages" not in st.session_state:
 if "input_submitted" not in st.session_state:
     st.session_state["input_submitted"] = False
 
-if "pdf_uploaded" not in st.session_state:
-    st.session_state["pdf_uploaded"] = False
+if "uploaded_docs" not in st.session_state:
+    st.session_state["uploaded_docs"] = []
 
-# Title
+if "uploaded_texts" not in st.session_state:
+    st.session_state["uploaded_texts"] = {}
+
+# Inject custom CSS for floating preview on right margin
+st.markdown("""
+    <style>
+        #right-panel {
+            position: fixed;
+            top: 75px;
+            right: 0;
+            width: 300px;
+            height: 90%;
+            background-color: #f9f9f9;
+            border-left: 1px solid #ddd;
+            padding: 15px;
+            overflow-y: auto;
+            z-index: 999;
+        }
+        .pdf-preview {
+            white-space: pre-wrap;
+            font-size: 0.85rem;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Title + reset button
 st.title("📚 VD - Compliance & Legal Assistant")
 st.markdown("💼 I can help with regulations, drafting documents, summaries, and more.")
-# Company Name
-company_name = st.text_input("Your Company Name")
 
-# Company Sector
-company_sector = st.text_input("Company Sector")
+if st.button("🗑️ Reset Chat"):
+    st.session_state["messages"] = [system_prompt]
+    st.session_state["uploaded_docs"] = []
+    st.session_state["uploaded_texts"] = {}
+    st.rerun()
 
-# Company Status: New or Established
-company_status = st.selectbox("Is your company new or established?", ("New", "Established"))
-
-# established_date = st.date_input("When was the company established?", max_value=datetime.today())
-# Display messages
+# Display chat history
 for msg in st.session_state["messages"][1:]:
     role = "🧑" if msg["role"] == "user" else "🤖"
     st.markdown(f"**{role}:** {msg['parts']}")
 
-# Chat Input
-user_input = st.text_input(
-    "💬 How can I assist you today?",
-    key=f"chat_input_{len(st.session_state['messages'])}"
-)
+# Chat input
+user_input = st.text_input("💬 How can I assist you today?", key=f"chat_input_{len(st.session_state['messages'])}")
 
 if user_input and not st.session_state["input_submitted"]:
     st.session_state["messages"].append({"role": "user", "parts": user_input})
@@ -80,23 +101,32 @@ if user_input and not st.session_state["input_submitted"]:
 
         st.session_state["input_submitted"] = True
         st.rerun()
-
     except Exception as e:
         st.error(f"Error: {str(e)}")
 
-# Reset flag after rerun
 if st.session_state["input_submitted"]:
     st.session_state["input_submitted"] = False
 
-# PDF uploader section (after input)
-uploaded_file = st.file_uploader("📄 Upload a PDF (e.g., contract, policy, legal doc)", type=["pdf"])
+# PDF upload
+uploaded_file = st.file_uploader("📄 Upload a PDF", type=["pdf"])
+if uploaded_file:
+    file_name = uploaded_file.name
+    if file_name not in st.session_state["uploaded_docs"]:
+        reader = PdfReader(uploaded_file)
+        extracted = "\n\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
+        short_text = extracted[:3000]
+        st.session_state["messages"].append({
+            "role": "user",
+            "parts": f"Extracted from uploaded PDF '{file_name}':\n{short_text}"
+        })
+        st.session_state["uploaded_docs"].append(file_name)
+        st.session_state["uploaded_texts"][file_name] = extracted
+        st.rerun()
 
-if uploaded_file and not st.session_state["pdf_uploaded"]:
-    reader = PdfReader(uploaded_file)
-    pdf_text = "\n\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
-    st.session_state["messages"].append({
-        "role": "user",
-        "parts": f"Extracted from uploaded PDF:\n{pdf_text[:3000]}"
-    })
-    st.session_state["pdf_uploaded"] = True
-    st.rerun()
+# === RIGHT FLOATING PANEL FOR PREVIEWS ===
+if st.session_state["uploaded_docs"]:
+    preview_html = "<div id='right-panel'><h4>📄 Uploaded Docs</h4>"
+    for doc in st.session_state["uploaded_docs"]:
+        preview_html += f"<b>📘 {doc}</b><div class='pdf-preview'>{st.session_state['uploaded_texts'][doc][:3000]}</div>"
+    preview_html += "</div>"
+    st.markdown(preview_html, unsafe_allow_html=True)
