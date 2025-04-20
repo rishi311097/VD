@@ -72,8 +72,8 @@ def handle_onboarding():
     elif step == 2:
         if onboarding_questions[2] not in st.session_state.chat_history:
             st.session_state.chat_history.append(onboarding_questions[2])
-        status = st.selectbox("New or Established?", ["New", "Established"])
-        if status:
+        status = st.selectbox("New or Established?", ["Select an option", "New", "Established"])
+        if status != "Select an option":  # Check if the user has made a selection
             st.session_state.chat_history.append({"role": "user", "text": status})
             st.session_state.company_data["status"] = status
             st.session_state.step += 1  # Move to the next step
