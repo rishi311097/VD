@@ -60,12 +60,13 @@ def handle_onboarding():
             st.rerun()
 
     elif step == 1:
-        st.session_state.chat_history.append(onboarding_questions[1])
+        if onboarding_questions[1] not in st.session_state.chat_history:
+            st.session_state.chat_history.append(onboarding_questions[1])
         sector = st.text_input("Your sector or field")
         if sector:
             st.session_state.chat_history.append({"role": "user", "text": sector})
             st.session_state.company_data["sector"] = sector
-            st.session_state.step = 2  # Explicitly set step to 2 to ask for "New or Established?"
+            st.session_state.step += 1  # Move to the next step
             st.rerun()
 
     elif step == 2:
@@ -75,7 +76,7 @@ def handle_onboarding():
         if status:
             st.session_state.chat_history.append({"role": "user", "text": status})
             st.session_state.company_data["status"] = status
-            st.session_state.step += 1 if status == "Established" else 2
+            st.session_state.step += 1  # Move to the next step
             st.rerun()
 
     elif step == 3:
@@ -97,7 +98,7 @@ def handle_onboarding():
             st.session_state.chat_history.append(onboarding_questions[4])
         st.session_state.onboarding_complete = True
         st.rerun()
-
+        
 # === Show Onboarding or Assistant ===
 if not st.session_state.onboarding_complete:
     handle_onboarding()
