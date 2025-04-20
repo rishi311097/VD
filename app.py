@@ -59,10 +59,14 @@ def show_onboarding():
     # Step 4: Date (if Established)
     elif st.session_state.setup_step == 4:
         if st.session_state.company_data["status"] == "Established":
-            st.session_state.established_date = st.date_input("When was the company established?", value=st.session_state.established_date, max_value=datetime.today())
+            date_input = st.text_input("When was the company established? (MM/DD/YYYY)", key="established_date_text")
             if st.button("Next", key="next4"):
-                st.session_state.company_data["established_date"] = str(st.session_state.established_date)
-                next_step()
+                try:
+                    parsed_date = datetime.strptime(date_input.strip(), "%m/%d/%Y")
+                    st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")  # or keep original format if preferred
+                    next_step()
+                except ValueError:
+                    st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
         else:
             next_step()
 
