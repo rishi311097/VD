@@ -26,40 +26,47 @@ def next_step():
 def show_onboarding():
     st.title("📚 VD - Compliance & Legal Assistant")
 
+    if "company_name" not in st.session_state:
+        st.session_state.company_name = ""
+    if "sector" not in st.session_state:
+        st.session_state.sector = ""
+    if "status" not in st.session_state:
+        st.session_state.status = ""
+    if "established_date" not in st.session_state:
+        st.session_state.established_date = datetime.today()
+
     # Step 1: Company Name
     if st.session_state.setup_step == 1:
-        company_name = st.text_input("Enter your company name", key="company_name")
-        if st.button("Next"):
-            if company_name.strip():
-                st.session_state.company_data["company_name"] = company_name
-                next_step()
+        st.session_state.company_name = st.text_input("Enter your company name", value=st.session_state.company_name)
+        if st.button("Next", key="next1") and st.session_state.company_name.strip():
+            st.session_state.company_data["company_name"] = st.session_state.company_name
+            next_step()
 
     # Step 2: Sector
     elif st.session_state.setup_step == 2:
-        sector = st.text_input("Enter your sector/field", key="sector")
-        if st.button("Next"):
-            if sector.strip():
-                st.session_state.company_data["sector"] = sector
-                next_step()
+        st.session_state.sector = st.text_input("Enter your sector/field", value=st.session_state.sector)
+        if st.button("Next", key="next2") and st.session_state.sector.strip():
+            st.session_state.company_data["sector"] = st.session_state.sector
+            next_step()
 
     # Step 3: New or Established
     elif st.session_state.setup_step == 3:
-        status = st.selectbox("Is your company new or established?", ["New", "Established"], key="status")
-        if st.button("Next"):
-            st.session_state.company_data["status"] = status
+        st.session_state.status = st.selectbox("Is your company new or established?", ["New", "Established"], index=0 if st.session_state.status == "New" else 1, key="status_select")
+        if st.button("Next", key="next3"):
+            st.session_state.company_data["status"] = st.session_state.status
             next_step()
 
-    # Step 4: Established date (if applicable)
+    # Step 4: Date (if Established)
     elif st.session_state.setup_step == 4:
         if st.session_state.company_data["status"] == "Established":
-            date = st.date_input("When was the company established?", max_value=datetime.today(), key="established_date")
-            if st.button("Next"):
-                st.session_state.company_data["established_date"] = str(date)
+            st.session_state.established_date = st.date_input("When was the company established?", value=st.session_state.established_date, max_value=datetime.today())
+            if st.button("Next", key="next4"):
+                st.session_state.company_data["established_date"] = str(st.session_state.established_date)
                 next_step()
         else:
             next_step()
 
-    # Step 5: Save to localStorage and proceed
+    # Step 5: Save to local storage & continue
     elif st.session_state.setup_step == 5:
         st.success("✅ Onboarding complete! Launching assistant...")
         components.html(f"""
@@ -70,6 +77,10 @@ def show_onboarding():
             </script>
         """, height=0)
         st.experimental_rerun()
+
+if st.session_state.get("setup_step", 1) < 5:
+    show_onboarding()
+    st.stop()
 
 # System prompt
 system_prompt = {
