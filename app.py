@@ -47,11 +47,11 @@ def display_chat():
 
 def handle_onboarding():
     display_chat()
-
-    # Ask based on current step
     step = st.session_state.step
+
     if step == 0:
-        st.session_state.chat_history.append(onboarding_questions[0])
+        if onboarding_questions[0] not in st.session_state.chat_history:
+            st.session_state.chat_history.append(onboarding_questions[0])
         company_name = st.text_input("Your company name")
         if company_name:
             st.session_state.chat_history.append({"role": "user", "text": company_name})
@@ -60,7 +60,8 @@ def handle_onboarding():
             st.rerun()
 
     elif step == 1:
-        st.session_state.chat_history.append(onboarding_questions[1])
+        if onboarding_questions[1] not in st.session_state.chat_history:
+            st.session_state.chat_history.append(onboarding_questions[1])
         sector = st.text_input("Your sector or field")
         if sector:
             st.session_state.chat_history.append({"role": "user", "text": sector})
@@ -69,19 +70,18 @@ def handle_onboarding():
             st.rerun()
 
     elif step == 2:
-        st.session_state.chat_history.append(onboarding_questions[2])
+        if onboarding_questions[2] not in st.session_state.chat_history:
+            st.session_state.chat_history.append(onboarding_questions[2])
         status = st.selectbox("New or Established?", ["New", "Established"])
         if status:
             st.session_state.chat_history.append({"role": "user", "text": status})
             st.session_state.company_data["status"] = status
-            if status == "Established":
-                st.session_state.step += 1
-            else:
-                st.session_state.step += 2  # Skip date
+            st.session_state.step += 1 if status == "Established" else 2
             st.rerun()
 
     elif step == 3:
-        st.session_state.chat_history.append(onboarding_questions[3])
+        if onboarding_questions[3] not in st.session_state.chat_history:
+            st.session_state.chat_history.append(onboarding_questions[3])
         date_input = st.text_input("Establishment date (MM/DD/YYYY)")
         if date_input:
             try:
@@ -94,7 +94,8 @@ def handle_onboarding():
                 st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
 
     elif step == 4:
-        st.session_state.chat_history.append(onboarding_questions[4])
+        if onboarding_questions[4] not in st.session_state.chat_history:
+            st.session_state.chat_history.append(onboarding_questions[4])
         st.session_state.onboarding_complete = True
         st.rerun()
 
