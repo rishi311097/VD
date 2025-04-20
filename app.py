@@ -43,40 +43,26 @@ def onboarding_chat_display():
             st.session_state.setup_step += 1
             st.rerun()
 
-    elif current_step == 3:
-        prompt = "Type `New` or `Established` to describe your company status."
-        user_input = st.chat_input(prompt)
-        if user_input:
-            status = user_input.strip().lower()
-            if status in ["new", "established"]:
-                formatted_status = "New" if status == "new" else "Established"
-                st.session_state.company_data["status"] = formatted_status
-                response = "When was it established? (MM/DD/YYYY)" if formatted_status == "Established" else "Awesome. Let's begin!"
-                st.session_state.onboarding_messages.append({"user": user_input, "bot": response})
-                st.session_state.setup_step += 1
-                st.rerun()
-            else:
-                st.session_state.onboarding_messages.append({"user": user_input, "bot": "Please enter `New` or `Established`."})
-                st.rerun()
+   # Step 3: New or Established (Dropdown)
+elif st.session_state.setup_step == 3:
+    st.session_state.status = st.selectbox("Is your company new or established?", ["New", "Established"], key="status_select")
+    if st.button("Next", key="next3"):
+        st.session_state.company_data["status"] = st.session_state.status
+        next_step()
 
-    elif current_step == 4:
-        if st.session_state.company_data["status"] == "Established":
-            prompt = "When was your company established? (MM/DD/YYYY)"
-            user_input = st.chat_input(prompt)
-            if user_input:
-                try:
-                    parsed_date = datetime.strptime(user_input.strip(), "%m/%d/%Y")
-                    st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
-                    st.session_state.onboarding_messages.append({"user": user_input, "bot": "✅ Thanks! Launching the assistant..."})
-                    st.session_state.setup_step += 1
-                    st.rerun()
-                except ValueError:
-                    st.session_state.onboarding_messages.append({"user": user_input, "bot": "❌ Please enter a valid date in MM/DD/YYYY format."})
-                    st.rerun()
-        else:
-            st.session_state.onboarding_messages.append({"user": "", "bot": "✅ Thanks! Launching the assistant..."})
-            st.session_state.setup_step += 1
-            st.rerun()
+# Step 4: Date (if Established)
+elif st.session_state.setup_step == 4:
+    if st.session_state.company_data["status"] == "Established":
+        date_input = st.text_input("When was the company established? (MM/DD/YYYY)", key="established_date_text")
+        if st.button("Next", key="next4"):
+            try:
+                parsed_date = datetime.strptime(date_input.strip(), "%m/%d/%Y")
+                st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
+                next_step()
+            except ValueError:
+                st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
+    else:
+        next_step()
 
     elif current_step == 5:
         components.html(f"""
