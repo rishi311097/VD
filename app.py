@@ -6,6 +6,7 @@ from PyPDF2 import PdfReader
 import streamlit.components.v1 as components
 from datetime import datetime
 
+##
 # Configure API
 genai.configure(api_key=st.secrets["API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-pro")
