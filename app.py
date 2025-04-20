@@ -46,7 +46,16 @@ if "pdf_uploaded" not in st.session_state:
 # Title
 st.title("📚 VD - Compliance & Legal Assistant")
 st.markdown("💼 I can help with regulations, drafting documents, summaries, and more.")
+# Company Name
+company_name = st.text_input("Your Company Name")
 
+# Company Sector
+company_sector = st.text_input("Company Sector")
+
+# Company Status: New or Established
+company_status = st.selectbox("Is your company new or established?", ("New", "Established"))
+
+established_date = st.date_input("When was the company established?", max_value=datetime.today())
 # Display messages
 for msg in st.session_state["messages"][1:]:
     role = "🧑" if msg["role"] == "user" else "🤖"
