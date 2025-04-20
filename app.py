@@ -4,10 +4,60 @@ import os
 import base64
 import uuid
 from PyPDF2 import PdfReader
+from streamlit_javascript import st_javascript
+from datetime import datetime
 
 # Configure API
 genai.configure(api_key=st.secrets["API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-pro")
+
+# Step-based onboarding
+if "setup_step" not in st.session_state:
+    st.session_state.setup_step = 1
+    st.session_state.company_data = {}
+
+def next_setup_step():
+    st.session_state.setup_step += 1
+
+def show_onboarding():
+    st.title("🏢 Company Onboarding")
+
+    if st.session_state.setup_step == 1:
+        company_name = st.text_input("Enter your company name")
+        if company_name:
+            st.session_state.company_data["company_name"] = company_name
+            next_setup_step()
+
+    elif st.session_state.setup_step == 2:
+        company_sector = st.text_input("Enter your sector/field")
+        if company_sector:
+            st.session_state.company_data["company_sector"] = company_sector
+            next_setup_step()
+
+    elif st.session_state.setup_step == 3:
+        company_status = st.selectbox("Is your company new or established?", ["New", "Established"])
+        if company_status:
+            st.session_state.company_data["company_status"] = company_status
+            next_setup_step()
+
+    elif st.session_state.setup_step == 4:
+        if st.session_state.company_data["company_status"] == "Established":
+            date = st.date_input("When was the company established?", max_value=datetime.today())
+            if date:
+                st.session_state.company_data["established_date"] = str(date)
+                next_setup_step()
+        else:
+            next_setup_step()
+
+    elif st.session_state.setup_step == 5:
+        st.success("✅ Onboarding complete! Launching the assistant...")
+        # Store data to local storage
+        js = f"""
+        const data = {st.session_state.company_data};
+        localStorage.setItem("companyData", JSON.stringify(data));
+        """
+        st_javascript(js)
+        st.rerun()
 
 # System prompt
 system_prompt = {
@@ -71,6 +121,9 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
+if st.session_state.get("setup_step", 1) < 5:
+    show_onboarding()
+    st.stop()
 
 # Title + reset button
 st.title("📚 VD - Compliance & Legal Assistant")
