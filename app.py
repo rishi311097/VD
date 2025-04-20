@@ -11,56 +11,61 @@ from datetime import datetime
 genai.configure(api_key=st.secrets["API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-pro")
 
-# Step-based onboarding
+# Initialize session state
 if "setup_step" not in st.session_state:
     st.session_state.setup_step = 1
     st.session_state.company_data = {}
 
-def next_setup_step():
+def next_step():
     st.session_state.setup_step += 1
 
 def show_onboarding():
     st.title("🏢 Organization Details")
 
+    # Step 1: Company Name
     if st.session_state.setup_step == 1:
-        company_name = st.text_input("Enter your company name")
-        if company_name:
-            st.session_state.company_data["company_name"] = company_name
-            next_setup_step()
+        company_name = st.text_input("Enter your company name", key="company_name")
+        if st.button("Next"):
+            if company_name.strip():
+                st.session_state.company_data["company_name"] = company_name
+                next_step()
 
+    # Step 2: Sector
     elif st.session_state.setup_step == 2:
-        company_sector = st.text_input("Enter your sector/field")
-        if company_sector:
-            st.session_state.company_data["company_sector"] = company_sector
-            next_setup_step()
+        sector = st.text_input("Enter your sector/field", key="sector")
+        if st.button("Next"):
+            if sector.strip():
+                st.session_state.company_data["sector"] = sector
+                next_step()
 
+    # Step 3: New or Established
     elif st.session_state.setup_step == 3:
-        company_status = st.selectbox("Is your company new or established?", ["New", "Established"])
-        if company_status:
-            st.session_state.company_data["company_status"] = company_status
-            next_setup_step()
+        status = st.selectbox("Is your company new or established?", ["New", "Established"], key="status")
+        if st.button("Next"):
+            st.session_state.company_data["status"] = status
+            next_step()
 
+    # Step 4: Established date (if applicable)
     elif st.session_state.setup_step == 4:
-        if st.session_state.company_data["company_status"] == "Established":
-            date = st.date_input("When was the company established?", max_value=datetime.today())
-            if date:
+        if st.session_state.company_data["status"] == "Established":
+            date = st.date_input("When was the company established?", max_value=datetime.today(), key="established_date")
+            if st.button("Next"):
                 st.session_state.company_data["established_date"] = str(date)
-                next_setup_step()
+                next_step()
         else:
-            next_setup_step()
+            next_step()
 
+    # Step 5: Save to localStorage and proceed
     elif st.session_state.setup_step == 5:
-        st.success("✅ Onboarding complete! Launching the assistant...")
-        # Store data to local storage
+        st.success("✅ Onboarding complete! Launching assistant...")
         components.html(f"""
-        <script>
-            const companyData = {st.session_state.company_data};
-            localStorage.setItem("companyData", JSON.stringify(companyData));
-            window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: true }}, '*');
-        </script>
+            <script>
+                const data = {st.session_state.company_data};
+                localStorage.setItem("companyData", JSON.stringify(data));
+                window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: true }}, '*');
+            </script>
         """, height=0)
-
-        st.rerun()
+        st.experimental_rerun()
 
 # System prompt
 system_prompt = {
