@@ -4,7 +4,7 @@ import os
 import base64
 import uuid
 from PyPDF2 import PdfReader
-from datetime import datetime
+# from datetime import datetime
 
 # Configure API
 genai.configure(api_key=st.secrets["API_KEY"])
@@ -56,7 +56,7 @@ company_sector = st.text_input("Company Sector")
 # Company Status: New or Established
 company_status = st.selectbox("Is your company new or established?", ("New", "Established"))
 
-established_date = st.date_input("When was the company established?", max_value=datetime.today())
+# established_date = st.date_input("When was the company established?", max_value=datetime.today())
 # Display messages
 for msg in st.session_state["messages"][1:]:
     role = "🧑" if msg["role"] == "user" else "🤖"
