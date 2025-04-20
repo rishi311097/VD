@@ -1,7 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
 import os
-import base64
 import uuid
 from PyPDF2 import PdfReader
 import streamlit.components.v1 as components
@@ -11,68 +10,75 @@ from datetime import datetime
 genai.configure(api_key=st.secrets["API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-pro")
 
-import streamlit as st
-import streamlit.components.v1 as components
-from datetime import datetime
-
-# Initialize session state
+# Initialize state
 if "setup_step" not in st.session_state:
     st.session_state.setup_step = 1
     st.session_state.company_data = {}
+    st.session_state.onboarding_messages = []
 
-def next_step():
-    st.session_state.setup_step += 1
-
-def show_onboarding():
+def onboarding_chat_display():
     st.title("📚 VD - Compliance & Legal Assistant")
+    for msg in st.session_state.onboarding_messages:
+        st.markdown(f"**🧑:** {msg['user']}")
+        if "bot" in msg:
+            st.markdown(f"**🤖:** {msg['bot']}")
 
-    if "company_name" not in st.session_state:
-        st.session_state.company_name = ""
-    if "sector" not in st.session_state:
-        st.session_state.sector = ""
-    if "status" not in st.session_state:
-        st.session_state.status = ""
-    if "established_date" not in st.session_state:
-        st.session_state.established_date = datetime.today()
+    current_step = st.session_state.setup_step
 
-    # Step 1: Company Name
-    if st.session_state.setup_step == 1:
-        st.session_state.company_name = st.text_input("Enter your company name", value=st.session_state.company_name)
-        if st.button("Next", key="next1") and st.session_state.company_name.strip():
-            st.session_state.company_data["company_name"] = st.session_state.company_name
-            next_step()
+    if current_step == 1:
+        prompt = "What's your company name?"
+        user_input = st.chat_input(prompt)
+        if user_input:
+            st.session_state.onboarding_messages.append({"user": user_input, "bot": "Great, and which sector or field are you in?"})
+            st.session_state.company_data["company_name"] = user_input
+            st.session_state.setup_step += 1
+            st.rerun()
 
-    # Step 2: Sector
-    elif st.session_state.setup_step == 2:
-        st.session_state.sector = st.text_input("Enter your sector/field", value=st.session_state.sector)
-        if st.button("Next", key="next2") and st.session_state.sector.strip():
-            st.session_state.company_data["sector"] = st.session_state.sector
-            next_step()
+    elif current_step == 2:
+        prompt = "Which sector or field is your company in?"
+        user_input = st.chat_input(prompt)
+        if user_input:
+            st.session_state.onboarding_messages.append({"user": user_input, "bot": "Got it. Is your company new or established?"})
+            st.session_state.company_data["sector"] = user_input
+            st.session_state.setup_step += 1
+            st.rerun()
 
-    # Step 3: New or Established
-    elif st.session_state.setup_step == 3:
-        st.session_state.status = st.selectbox("Is your company new or established?", ["New", "Established"], index=0 if st.session_state.status == "New" else 1, key="status_select")
-        if st.button("Next", key="next3"):
-            st.session_state.company_data["status"] = st.session_state.status
-            next_step()
+    elif current_step == 3:
+        prompt = "Type `New` or `Established` to describe your company status."
+        user_input = st.chat_input(prompt)
+        if user_input:
+            status = user_input.strip().lower()
+            if status in ["new", "established"]:
+                formatted_status = "New" if status == "new" else "Established"
+                st.session_state.company_data["status"] = formatted_status
+                response = "When was it established? (MM/DD/YYYY)" if formatted_status == "Established" else "Awesome. Let's begin!"
+                st.session_state.onboarding_messages.append({"user": user_input, "bot": response})
+                st.session_state.setup_step += 1
+                st.rerun()
+            else:
+                st.session_state.onboarding_messages.append({"user": user_input, "bot": "Please enter `New` or `Established`."})
+                st.rerun()
 
-    # Step 4: Date (if Established)
-    elif st.session_state.setup_step == 4:
+    elif current_step == 4:
         if st.session_state.company_data["status"] == "Established":
-            date_input = st.text_input("When was the company established? (MM/DD/YYYY)", key="established_date_text")
-            if st.button("Next", key="next4"):
+            prompt = "When was your company established? (MM/DD/YYYY)"
+            user_input = st.chat_input(prompt)
+            if user_input:
                 try:
-                    parsed_date = datetime.strptime(date_input.strip(), "%m/%d/%Y")
-                    st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")  # or keep original format if preferred
-                    next_step()
+                    parsed_date = datetime.strptime(user_input.strip(), "%m/%d/%Y")
+                    st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
+                    st.session_state.onboarding_messages.append({"user": user_input, "bot": "✅ Thanks! Launching the assistant..."})
+                    st.session_state.setup_step += 1
+                    st.rerun()
                 except ValueError:
-                    st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
+                    st.session_state.onboarding_messages.append({"user": user_input, "bot": "❌ Please enter a valid date in MM/DD/YYYY format."})
+                    st.rerun()
         else:
-            next_step()
+            st.session_state.onboarding_messages.append({"user": "", "bot": "✅ Thanks! Launching the assistant..."})
+            st.session_state.setup_step += 1
+            st.rerun()
 
-    # Step 5: Save to local storage & continue
-    elif st.session_state.setup_step == 5:
-        st.success("✅ Onboarding complete! Launching assistant...")
+    elif current_step == 5:
         components.html(f"""
             <script>
                 const data = {st.session_state.company_data};
@@ -80,11 +86,15 @@ def show_onboarding():
                 window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: true }}, '*');
             </script>
         """, height=0)
-        st.experimental_rerun()
+        st.session_state.onboarding_done = True
+        st.rerun()
 
-if st.session_state.get("setup_step", 1) < 5:
-    show_onboarding()
+# Run onboarding if not done
+if st.session_state.get("setup_step", 1) < 6:
+    onboarding_chat_display()
     st.stop()
+
+# ================= Main App =================
 
 # System prompt
 system_prompt = {
@@ -108,6 +118,7 @@ Guidelines for responses:
 Default jurisdiction: United States (unless the user specifies otherwise).
 """
 }
+
 if "user_id" not in st.session_state:
     st.session_state["user_id"] = str(uuid.uuid4())
 
@@ -123,36 +134,7 @@ if "uploaded_docs" not in st.session_state:
 if "uploaded_texts" not in st.session_state:
     st.session_state["uploaded_texts"] = {}
 
- ## NEw comment
-# Inject custom CSS for floating preview on right margin
-st.markdown("""
-    <style>
-        #right-panel {
-            position: fixed;
-            top: 75px;
-            right: 0;
-            width: 300px;
-            height: 90%;
-            background-color: #f9f9f9;
-            border-left: 1px solid #ddd;
-            padding: 15px;
-            overflow-y: auto;
-            z-index: 999;
-        }
-        .pdf-preview {
-            white-space: pre-wrap;
-            font-size: 0.85rem;
-            max-height: 150px;
-            overflow-y: auto;
-            margin-bottom: 20px;
-        }
-    </style>
-""", unsafe_allow_html=True)
-if st.session_state.get("setup_step", 1) < 5:
-    show_onboarding()
-    st.stop()
-
-# Title + reset button
+# UI
 st.title("📚 VD - Compliance & Legal Assistant")
 st.markdown("💼 I can help with regulations, drafting documents, summaries, and more.")
 
@@ -162,14 +144,13 @@ if st.button("🗑️ Reset Chat"):
     st.session_state["uploaded_texts"] = {}
     st.rerun()
 
-# Display chat history
+# Chat history
 for msg in st.session_state["messages"][1:]:
     role = "🧑" if msg["role"] == "user" else "🤖"
     st.markdown(f"**{role}:** {msg['parts']}")
 
 # Chat input
-user_input = st.text_input("💬 How can I assist you today?", key=f"chat_input_{len(st.session_state['messages'])}")
-
+user_input = st.chat_input("💬 How can I assist you today?")
 if user_input and not st.session_state["input_submitted"]:
     st.session_state["messages"].append({"role": "user", "parts": user_input})
     try:
@@ -188,7 +169,7 @@ if user_input and not st.session_state["input_submitted"]:
 if st.session_state["input_submitted"]:
     st.session_state["input_submitted"] = False
 
-# PDF upload
+# PDF Upload
 uploaded_file = st.file_uploader("📄 Upload a PDF", type=["pdf"])
 if uploaded_file:
     file_name = uploaded_file.name
@@ -204,10 +185,35 @@ if uploaded_file:
         st.session_state["uploaded_texts"][file_name] = extracted
         st.rerun()
 
-# === RIGHT FLOATING PANEL FOR PREVIEWS ===
+# Floating preview
 if st.session_state["uploaded_docs"]:
     preview_html = "<div id='right-panel'><h4>📄 Uploaded Docs</h4>"
     for doc in st.session_state["uploaded_docs"]:
         preview_html += f"<b>📘 {doc}</b><div class='pdf-preview'>{st.session_state['uploaded_texts'][doc][:3000]}</div>"
     preview_html += "</div>"
+
+    st.markdown("""
+        <style>
+            #right-panel {
+                position: fixed;
+                top: 75px;
+                right: 0;
+                width: 300px;
+                height: 90%;
+                background-color: #f9f9f9;
+                border-left: 1px solid #ddd;
+                padding: 15px;
+                overflow-y: auto;
+                z-index: 999;
+            }
+            .pdf-preview {
+                white-space: pre-wrap;
+                font-size: 0.85rem;
+                max-height: 150px;
+                overflow-y: auto;
+                margin-bottom: 20px;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
     st.markdown(preview_html, unsafe_allow_html=True)
