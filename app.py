@@ -4,7 +4,7 @@ import os
 import base64
 import uuid
 from PyPDF2 import PdfReader
-from streamlit_javascript import st_javascript
+import streamlit.components.v1 as components
 from datetime import datetime
 
 # Configure API
@@ -52,11 +52,14 @@ def show_onboarding():
     elif st.session_state.setup_step == 5:
         st.success("✅ Onboarding complete! Launching the assistant...")
         # Store data to local storage
-        js = f"""
-        const data = {st.session_state.company_data};
-        localStorage.setItem("companyData", JSON.stringify(data));
-        """
-        st_javascript(js)
+        components.html(f"""
+        <script>
+            const companyData = {st.session_state.company_data};
+            localStorage.setItem("companyData", JSON.stringify(companyData));
+            window.parent.postMessage({{ type: 'streamlit:setComponentValue', value: true }}, '*');
+        </script>
+        """, height=0)
+
         st.rerun()
 
 # System prompt
