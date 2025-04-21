@@ -26,8 +26,6 @@ if "uploaded_texts" not in st.session_state:
     st.session_state.uploaded_texts = {}
 if "view" not in st.session_state:
     st.session_state.view = "main"
-if "question_asked" not in st.session_state:
-    st.session_state.question_asked = False
 
 # === Main Page ===
 if st.session_state.view == "main":
@@ -47,6 +45,7 @@ if st.session_state.view == "main":
 
     if st.button("Get Started"):
         st.session_state.view = "chat"
+        st.rerun()
 
 # === Chat Page ===
 elif st.session_state.view == "chat":
@@ -69,57 +68,49 @@ elif st.session_state.view == "chat":
         display_chat()
         step = st.session_state.step
 
-        # Ask question only once
-        if not st.session_state.question_asked and step < len(onboarding_questions):
-            st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
-            st.session_state.question_asked = True
-
-        # Handle responses
-        if step == 0:
-            company_name = st.text_input("Your company name")
-            if company_name:
-                st.session_state.chat_history.append({"role": "user", "parts": [company_name]})
-                st.session_state.company_data["company_name"] = company_name
-                st.session_state.step += 1
-                st.session_state.question_asked = False
+        if step < len(onboarding_questions):
+            # Ask the current question
+            if not st.session_state.chat_history or st.session_state.chat_history[-1]["role"] == "user":
+                st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
                 st.rerun()
 
-        elif step == 1:
-            sector = st.text_input("Your sector or field")
-            if sector:
-                st.session_state.chat_history.append({"role": "user", "parts": [sector]})
-                st.session_state.company_data["sector"] = sector
-                st.session_state.step += 1
-                st.session_state.question_asked = False
-                st.rerun()
-
-        elif step == 2:
-            status = st.selectbox("New or Established?", ["Select an option", "New", "Established"])
-            if status != "Select an option":
-                st.session_state.chat_history.append({"role": "user", "parts": [status]})
-                st.session_state.company_data["status"] = status
-                st.session_state.step += 1
-                st.session_state.question_asked = False
-                st.rerun()
-
-        elif step == 3:
-            date_input = st.text_input("Establishment date (MM/DD/YYYY)")
-            if date_input:
-                try:
-                    parsed_date = datetime.strptime(date_input.strip(), "%m/%d/%Y")
-                    st.session_state.chat_history.append({"role": "user", "parts": [date_input]})
-                    st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
+            # Handle user input for each step
+            if step == 0:
+                company_name = st.text_input(onboarding_questions[step])
+                if company_name:
+                    st.session_state.chat_history.append({"role": "user", "parts": [company_name]})
+                    st.session_state.company_data["company_name"] = company_name
                     st.session_state.step += 1
-                    st.session_state.question_asked = False
                     st.rerun()
-                except ValueError:
-                    st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
-
-        elif step == 4:
-            st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[4]]})
-            st.session_state.onboarding_complete = True
-            st.session_state.question_asked = False
-            st.rerun()
+            elif step == 1:
+                sector = st.text_input(onboarding_questions[step])
+                if sector:
+                    st.session_state.chat_history.append({"role": "user", "parts": [sector]})
+                    st.session_state.company_data["sector"] = sector
+                    st.session_state.step += 1
+                    st.rerun()
+            elif step == 2:
+                status = st.selectbox(onboarding_questions[step], ["Select an option", "New", "Established"])
+                if status != "Select an option":
+                    st.session_state.chat_history.append({"role": "user", "parts": [status]})
+                    st.session_state.company_data["status"] = status
+                    st.session_state.step += 1
+                    st.rerun()
+            elif step == 3:
+                date_input = st.text_input(onboarding_questions[step])
+                if date_input:
+                    try:
+                        parsed_date = datetime.strptime(date_input.strip(), "%m/%d/%Y")
+                        st.session_state.chat_history.append({"role": "user", "parts": [date_input]})
+                        st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
+                        st.session_state.step += 1
+                        st.rerun()
+                    except ValueError:
+                        st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
+            elif step == 4:
+                st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
+                st.session_state.onboarding_complete = True
+                st.rerun()
 
     if not st.session_state.onboarding_complete:
         handle_onboarding()
@@ -140,16 +131,17 @@ Speak clearly, use legal references, disclaim legal advice, and ask clarifying q
     }
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [system_prompt] + st.session_state.chat_history
+        st.session_state.messages = [system_prompt]
 
     display_chat()
 
     user_input = st.text_input("💬 How can I assist you today?")
     if user_input:
-        # Inject onboarding context BEFORE user query
-        context_message = {
-            "role": "user",
-            "parts": [f"""
+        # Inject onboarding context BEFORE user query, only once after onboarding
+        if len(st.session_state.messages) == 1 + len(st.session_state.chat_history) and st.session_state.onboarding_complete:
+            context_message = {
+                "role": "user",
+                "parts": [f"""
 My company details:
 - Name: {st.session_state.company_data.get("company_name", "N/A")}
 - Sector: {st.session_state.company_data.get("sector", "N/A")}
@@ -157,9 +149,9 @@ My company details:
 - Established: {st.session_state.company_data.get("established_date", "N/A")}
 These details should help you give tailored legal and tax guidance.
 """]
-        }
+            }
+            st.session_state.messages.append(context_message)
 
-        st.session_state.messages.append(context_message)
         st.session_state.messages.append({"role": "user", "parts": [user_input]})
         st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
 
