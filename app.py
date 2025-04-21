@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as st, st1, st2, st3, st4, st5
 import google.generativeai as genai
 import os
 import uuid
@@ -84,7 +84,7 @@ elif st.session_state.view == "chat":
                     st.session_state.chat_history.append({"role": "user", "parts": [company_name]})
                     st.session_state.company_data["company_name"] = company_name
                     st.session_state.step += 1
-                    st.rerun()
+                    st2.rerun()
             elif step == 1:
                 sector = st.text_input(onboarding_questions[step])
                 if sector:
@@ -98,7 +98,7 @@ elif st.session_state.view == "chat":
                     st.session_state.chat_history.append({"role": "user", "parts": [status]})
                     st.session_state.company_data["status"] = status
                     st.session_state.step += 1
-                    st.rerun()
+                    st3.rerun()
             elif step == 3:
                 date_input = st.text_input(onboarding_questions[step])
                 if date_input:
@@ -107,13 +107,13 @@ elif st.session_state.view == "chat":
                         st.session_state.chat_history.append({"role": "user", "parts": [date_input]})
                         st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
                         st.session_state.step += 1
-                        st.rerun()
+                        st4.rerun()
                     except ValueError:
                         st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
             elif step == 4:
                 st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
                 st.session_state.onboarding_complete = True
-                # st.rerun()
+                st5.rerun()
 
     if not st.session_state.onboarding_complete:
         handle_onboarding()
