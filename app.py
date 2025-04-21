@@ -1,4 +1,4 @@
-import streamlit as st, st1, st2, st3, st4, st5
+import streamlit as st
 import google.generativeai as genai
 import os
 import uuid
