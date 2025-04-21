@@ -48,10 +48,8 @@ if st.session_state.view == "main":
 
 # === Chatbot Page ===
 elif st.session_state.view == "chat":
-    # === Title ===
     st.title("📚 VD - Compliance & Legal Assistant")
 
-    # === Onboarding Prompts ===
     onboarding_questions = [
         {"role": "bot", "text": "Hi there! What's your company name?"},
         {"role": "bot", "text": "Great, and which sector or field are you in?"},
@@ -67,7 +65,7 @@ elif st.session_state.view == "chat":
             else:
                 st.markdown(f"🦁: {message['text']}")
 
-        def handle_onboarding():
+    def handle_onboarding():
         display_chat()
         step = st.session_state.step
 
@@ -121,12 +119,10 @@ elif st.session_state.view == "chat":
             st.session_state.onboarding_complete = True
             st.rerun()
 
-    # === Show Onboarding or Assistant ===
     if not st.session_state.onboarding_complete:
         handle_onboarding()
         st.stop()
 
-    # === Add system prompt and transition to main chat ===
     system_prompt = {
         "role": "user",
         "parts": """
@@ -152,10 +148,8 @@ Default jurisdiction: United States (unless the user specifies otherwise).
     if "messages" not in st.session_state:
         st.session_state.messages = [system_prompt] + st.session_state.chat_history
 
-    # === Show previous messages ===
     display_chat()
 
-    # === Chat input ===
     user_input = st.text_input("💬 How can I assist you today?")
     if user_input:
         st.session_state.messages.append({"role": "user", "parts": user_input})
@@ -167,7 +161,6 @@ Default jurisdiction: United States (unless the user specifies otherwise).
             st.session_state.messages.append({"role": "model", "parts": reply})
             st.session_state.chat_history.append({"role": "bot", "text": reply})
 
-            # Logging (optional)
             os.makedirs("logs", exist_ok=True)
             with open(f"logs/{st.session_state.user_id}.txt", "a", encoding="utf-8") as f:
                 f.write(f"\nUser: {user_input}\nBot: {reply}\n")
@@ -176,13 +169,11 @@ Default jurisdiction: United States (unless the user specifies otherwise).
         except Exception as e:
             st.error(f"❌ Error: {str(e)}")
 
-    # === Reset Chat ===
     if st.button("🗑️ Reset Chat"):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
 
-    # === Upload PDF and extract ===
     uploaded_file = st.file_uploader("📄 Upload a PDF", type=["pdf"])
     if uploaded_file:
         file_name = uploaded_file.name
@@ -198,7 +189,6 @@ Default jurisdiction: United States (unless the user specifies otherwise).
             st.session_state.uploaded_texts[file_name] = extracted
             st.rerun()
 
-    # === PDF preview on right ===
     if st.session_state.uploaded_docs:
         preview_html = "<div id='right-panel'><h4>📄 Uploaded Docs</h4>"
         for doc in st.session_state.uploaded_docs:
