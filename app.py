@@ -26,6 +26,8 @@ if "uploaded_texts" not in st.session_state:
     st.session_state.uploaded_texts = {}
 if "view" not in st.session_state:
     st.session_state.view = "main"
+if "question_asked" not in st.session_state:
+    st.session_state.question_asked = False
 
 # === Main Page ===
 if st.session_state.view == "main":
@@ -67,17 +69,19 @@ elif st.session_state.view == "chat":
         display_chat()
         step = st.session_state.step
 
-        # Ask question (from model)
-        if len(st.session_state.chat_history) == step * 2:
+        # Ask question only once
+        if not st.session_state.question_asked and step < len(onboarding_questions):
             st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
+            st.session_state.question_asked = True
 
-        # Handle user input
+        # Handle responses
         if step == 0:
             company_name = st.text_input("Your company name")
             if company_name:
                 st.session_state.chat_history.append({"role": "user", "parts": [company_name]})
                 st.session_state.company_data["company_name"] = company_name
                 st.session_state.step += 1
+                st.session_state.question_asked = False
                 st.rerun()
 
         elif step == 1:
@@ -86,6 +90,7 @@ elif st.session_state.view == "chat":
                 st.session_state.chat_history.append({"role": "user", "parts": [sector]})
                 st.session_state.company_data["sector"] = sector
                 st.session_state.step += 1
+                st.session_state.question_asked = False
                 st.rerun()
 
         elif step == 2:
@@ -94,6 +99,7 @@ elif st.session_state.view == "chat":
                 st.session_state.chat_history.append({"role": "user", "parts": [status]})
                 st.session_state.company_data["status"] = status
                 st.session_state.step += 1
+                st.session_state.question_asked = False
                 st.rerun()
 
         elif step == 3:
@@ -104,6 +110,7 @@ elif st.session_state.view == "chat":
                     st.session_state.chat_history.append({"role": "user", "parts": [date_input]})
                     st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
                     st.session_state.step += 1
+                    st.session_state.question_asked = False
                     st.rerun()
                 except ValueError:
                     st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
@@ -111,6 +118,7 @@ elif st.session_state.view == "chat":
         elif step == 4:
             st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[4]]})
             st.session_state.onboarding_complete = True
+            st.session_state.question_asked = False
             st.rerun()
 
     if not st.session_state.onboarding_complete:
@@ -142,29 +150,29 @@ Speak clearly, use legal references, disclaim legal advice, and ask clarifying q
         context_message = {
             "role": "user",
             "parts": [f"""
-    My company details:
-    - Name: {st.session_state.company_data.get("company_name", "N/A")}
-    - Sector: {st.session_state.company_data.get("sector", "N/A")}
-    - Status: {st.session_state.company_data.get("status", "N/A")}
-    - Established: {st.session_state.company_data.get("established_date", "N/A")}
-    These details should help you give tailored legal and tax guidance.
-    """]
+My company details:
+- Name: {st.session_state.company_data.get("company_name", "N/A")}
+- Sector: {st.session_state.company_data.get("sector", "N/A")}
+- Status: {st.session_state.company_data.get("status", "N/A")}
+- Established: {st.session_state.company_data.get("established_date", "N/A")}
+These details should help you give tailored legal and tax guidance.
+"""]
         }
-    
+
         st.session_state.messages.append(context_message)
         st.session_state.messages.append({"role": "user", "parts": [user_input]})
         st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
-    
+
         try:
             response = model.generate_content(st.session_state.messages)
             reply = response.text
             st.session_state.messages.append({"role": "model", "parts": [reply]})
             st.session_state.chat_history.append({"role": "model", "parts": [reply]})
-    
+
             os.makedirs("logs", exist_ok=True)
             with open(f"logs/{st.session_state.user_id}.txt", "a", encoding="utf-8") as f:
                 f.write(f"\nUser: {user_input}\nBot: {reply}\n")
-    
+
             st.rerun()
         except Exception as e:
             st.error(f"❌ Error: {str(e)}")
