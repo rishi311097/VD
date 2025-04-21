@@ -25,7 +25,7 @@ if "uploaded_docs" not in st.session_state:
 if "uploaded_texts" not in st.session_state:
     st.session_state.uploaded_texts = {}
 if "view" not in st.session_state:
-    st.session_state.view = "main"  # Default view
+    st.session_state.view = "main"
 
 # === Main Page ===
 if st.session_state.view == "main":
@@ -44,26 +44,26 @@ if st.session_state.view == "main":
     """)
 
     if st.button("Get Started"):
-        st.session_state.view = "chat"  # Switch to chat view
+        st.session_state.view = "chat"
 
 # === Chatbot Page ===
 elif st.session_state.view == "chat":
     st.title("📚 VD - Compliance & Legal Assistant")
 
     onboarding_questions = [
-        {"role": "bot", "text": "Hi there! What's your company name?"},
-        {"role": "bot", "text": "Great, and which sector or field are you in?"},
-        {"role": "bot", "text": "Got it. Is your company new or established?"},
-        {"role": "bot", "text": "When was the company established? (MM/DD/YYYY)"},
-        {"role": "bot", "text": "✅ Thanks! Launching the assistant..."},
+        {"role": "bot", "parts": ["Hi there! What's your company name?"]},
+        {"role": "bot", "parts": ["Great, and which sector or field are you in?"]},
+        {"role": "bot", "parts": ["Got it. Is your company new or established?"]},
+        {"role": "bot", "parts": ["When was the company established? (MM/DD/YYYY)"]},
+        {"role": "bot", "parts": ["✅ Thanks! Launching the assistant..."]},
     ]
 
     def display_chat():
         for message in st.session_state.chat_history:
             if message["role"] == "bot":
-                st.markdown(f"🤖: {message['text']}")
+                st.markdown(f"🤖: {message['parts'][0]}")
             else:
-                st.markdown(f"🦁: {message['text']}")
+                st.markdown(f"🦁: {message['parts'][0]}")
 
     def handle_onboarding():
         display_chat()
@@ -74,7 +74,7 @@ elif st.session_state.view == "chat":
                 st.session_state.chat_history.append(onboarding_questions[0])
             company_name = st.text_input("Your company name")
             if company_name:
-                st.session_state.chat_history.append({"role": "user", "text": company_name})
+                st.session_state.chat_history.append({"role": "user", "parts": [company_name]})
                 st.session_state.company_data["company_name"] = company_name
                 st.session_state.step += 1
                 st.rerun()
@@ -84,7 +84,7 @@ elif st.session_state.view == "chat":
                 st.session_state.chat_history.append(onboarding_questions[1])
             sector = st.text_input("Your sector or field")
             if sector:
-                st.session_state.chat_history.append({"role": "user", "text": sector})
+                st.session_state.chat_history.append({"role": "user", "parts": [sector]})
                 st.session_state.company_data["sector"] = sector
                 st.session_state.step += 1
                 st.rerun()
@@ -94,7 +94,7 @@ elif st.session_state.view == "chat":
                 st.session_state.chat_history.append(onboarding_questions[2])
             status = st.selectbox("New or Established?", ["Select an option", "New", "Established"])
             if status != "Select an option":
-                st.session_state.chat_history.append({"role": "user", "text": status})
+                st.session_state.chat_history.append({"role": "user", "parts": [status]})
                 st.session_state.company_data["status"] = status
                 st.session_state.step += 1
                 st.rerun()
@@ -106,7 +106,7 @@ elif st.session_state.view == "chat":
             if date_input:
                 try:
                     parsed_date = datetime.strptime(date_input.strip(), "%m/%d/%Y")
-                    st.session_state.chat_history.append({"role": "user", "text": date_input})
+                    st.session_state.chat_history.append({"role": "user", "parts": [date_input]})
                     st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
                     st.session_state.step += 1
                     st.rerun()
@@ -123,9 +123,10 @@ elif st.session_state.view == "chat":
         handle_onboarding()
         st.stop()
 
+    # === System Prompt ===
     system_prompt = {
         "role": "user",
-        "parts": """
+        "parts": ["""
 You are a Compliance and Legal Assistant expert, purpose-built to support legal professionals, compliance officers, and corporate teams in the United States. You possess comprehensive knowledge of U.S. corporate law, data protection regulations, financial compliance frameworks, and sector-specific obligations.
 
 Your core responsibilities include:
@@ -142,7 +143,7 @@ Guidelines for responses:
 - Proactively request clarification when a query lacks sufficient detail or jurisdictional context.
 
 Default jurisdiction: United States (unless the user specifies otherwise).
-"""
+        """]
     }
 
     if "messages" not in st.session_state:
@@ -152,14 +153,14 @@ Default jurisdiction: United States (unless the user specifies otherwise).
 
     user_input = st.text_input("💬 How can I assist you today?")
     if user_input:
-        st.session_state.messages.append({"role": "user", "parts": user_input})
-        st.session_state.chat_history.append({"role": "user", "text": user_input})
+        st.session_state.messages.append({"role": "user", "parts": [user_input]})
+        st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
 
         try:
             response = model.generate_content(st.session_state.messages)
             reply = response.text
-            st.session_state.messages.append({"role": "model", "parts": reply})
-            st.session_state.chat_history.append({"role": "bot", "text": reply})
+            st.session_state.messages.append({"role": "model", "parts": [reply]})
+            st.session_state.chat_history.append({"role": "bot", "parts": [reply]})
 
             os.makedirs("logs", exist_ok=True)
             with open(f"logs/{st.session_state.user_id}.txt", "a", encoding="utf-8") as f:
@@ -183,7 +184,7 @@ Default jurisdiction: United States (unless the user specifies otherwise).
             short_text = extracted[:3000]
             st.session_state.chat_history.append({
                 "role": "user",
-                "text": f"📄 Extracted from '{file_name}':\n{short_text}"
+                "parts": [f"📄 Extracted from '{file_name}':\n{short_text}"]
             })
             st.session_state.uploaded_docs.append(file_name)
             st.session_state.uploaded_texts[file_name] = extracted
