@@ -67,7 +67,7 @@ elif st.session_state.view == "chat":
             else:
                 st.markdown(f"🦁: {message['text']}")
 
-    def handle_onboarding():
+        def handle_onboarding():
         display_chat()
         step = st.session_state.step
 
