@@ -147,6 +147,7 @@ def home():
         if not st.session_state.onboarding_complete:
             handle_onboarding()
             st.stop()
+            st.markdown("✅ Onboarding complete. You can now launch the assistant.")
 
     st.title("📚 Welcome to VD - Compliance & Legal Assistant")
     st.markdown(horizontal_bar, True)
@@ -161,7 +162,6 @@ def home():
         st.subheader("📌 Getting Started")
         st.markdown(horizontal_bar, True)
 
-        st.markdown("✅ Onboarding complete. You can now launch the assistant.")
         if st.button("💬 Ask VD"):
             st.session_state.page = "chat"
             st.rerun()
