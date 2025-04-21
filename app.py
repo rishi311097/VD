@@ -110,7 +110,7 @@ elif st.session_state.view == "chat":
             elif step == 4:
                 st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
                 st.session_state.onboarding_complete = True
-                st.rerun()
+                # No immediate rerun here. The next rerun will happen when the user types in the chat.
 
     if not st.session_state.onboarding_complete:
         handle_onboarding()
