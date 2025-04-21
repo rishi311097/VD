@@ -46,32 +46,33 @@ if st.session_state.view == "main":
     if st.button("Get Started"):
         st.session_state.view = "chat"
 
-# === Chatbot Page ===
+# === Chat Page ===
 elif st.session_state.view == "chat":
     st.title("📚 VD - Compliance & Legal Assistant")
 
     onboarding_questions = [
-        {"role": "bot", "parts": ["Hi there! What's your company name?"]},
-        {"role": "bot", "parts": ["Great, and which sector or field are you in?"]},
-        {"role": "bot", "parts": ["Got it. Is your company new or established?"]},
-        {"role": "bot", "parts": ["When was the company established? (MM/DD/YYYY)"]},
-        {"role": "bot", "parts": ["✅ Thanks! Launching the assistant..."]},
+        "Hi there! What's your company name?",
+        "Great, and which sector or field are you in?",
+        "Got it. Is your company new or established?",
+        "When was the company established? (MM/DD/YYYY)",
+        "✅ Thanks! Launching the assistant..."
     ]
 
     def display_chat():
         for message in st.session_state.chat_history:
-            if message["role"] == "bot":
-                st.markdown(f"🤖: {message['parts'][0]}")
-            else:
-                st.markdown(f"🦁: {message['parts'][0]}")
+            role = "🤖" if message["role"] == "model" else "🦁"
+            st.markdown(f"{role}: {message['parts'][0]}")
 
     def handle_onboarding():
         display_chat()
         step = st.session_state.step
 
+        # Ask question (from model)
+        if len(st.session_state.chat_history) == step * 2:
+            st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
+
+        # Handle user input
         if step == 0:
-            if onboarding_questions[0] not in st.session_state.chat_history:
-                st.session_state.chat_history.append(onboarding_questions[0])
             company_name = st.text_input("Your company name")
             if company_name:
                 st.session_state.chat_history.append({"role": "user", "parts": [company_name]})
@@ -80,8 +81,6 @@ elif st.session_state.view == "chat":
                 st.rerun()
 
         elif step == 1:
-            if onboarding_questions[1] not in st.session_state.chat_history:
-                st.session_state.chat_history.append(onboarding_questions[1])
             sector = st.text_input("Your sector or field")
             if sector:
                 st.session_state.chat_history.append({"role": "user", "parts": [sector]})
@@ -90,8 +89,6 @@ elif st.session_state.view == "chat":
                 st.rerun()
 
         elif step == 2:
-            if onboarding_questions[2] not in st.session_state.chat_history:
-                st.session_state.chat_history.append(onboarding_questions[2])
             status = st.selectbox("New or Established?", ["Select an option", "New", "Established"])
             if status != "Select an option":
                 st.session_state.chat_history.append({"role": "user", "parts": [status]})
@@ -100,8 +97,6 @@ elif st.session_state.view == "chat":
                 st.rerun()
 
         elif step == 3:
-            if onboarding_questions[3] not in st.session_state.chat_history:
-                st.session_state.chat_history.append(onboarding_questions[3])
             date_input = st.text_input("Establishment date (MM/DD/YYYY)")
             if date_input:
                 try:
@@ -114,8 +109,7 @@ elif st.session_state.view == "chat":
                     st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
 
         elif step == 4:
-            if onboarding_questions[4] not in st.session_state.chat_history:
-                st.session_state.chat_history.append(onboarding_questions[4])
+            st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[4]]})
             st.session_state.onboarding_complete = True
             st.rerun()
 
@@ -127,23 +121,14 @@ elif st.session_state.view == "chat":
     system_prompt = {
         "role": "user",
         "parts": ["""
-You are a Compliance and Legal Assistant expert, purpose-built to support legal professionals, compliance officers, and corporate teams in the United States. You possess comprehensive knowledge of U.S. corporate law, data protection regulations, financial compliance frameworks, and sector-specific obligations.
+You are a Compliance and Legal Assistant expert for U.S. businesses. Your responsibilities include:
+- Explaining U.S. laws like GDPR, HIPAA, SOX, CCPA, PCI DSS.
+- Drafting legal documents: NDAs, privacy policies, ToS, contracts.
+- Identifying regulatory risks, suggesting mitigation.
+- Helping with audits, due diligence, legal Q&A.
 
-Your core responsibilities include:
-- Interpreting and summarizing U.S. federal, state, and industry-specific regulations (e.g., GDPR, HIPAA, SOX, CCPA, PCI DSS, SEC, FTC).
-- Drafting precise and professional legal and compliance documents (e.g., privacy policies, terms of service, NDAs, vendor contracts, audit checklists).
-- Identifying legal and regulatory risks and recommending practical, risk-based mitigation strategies.
-- Assisting with regulatory reporting, compliance tracking, due diligence, and audit preparedness.
-- Answering legal and compliance questions with clarity and accuracy, defaulting to U.S. legal context unless otherwise specified.
-
-Guidelines for responses:
-- Use clear, formal, and business-appropriate language suitable for legal and corporate audiences.
-- Include citations or references to relevant laws, codes, or regulatory bodies where applicable.
-- Always include a disclaimer that your responses are for informational purposes only and do not constitute legal advice.
-- Proactively request clarification when a query lacks sufficient detail or jurisdictional context.
-
-Default jurisdiction: United States (unless the user specifies otherwise).
-        """]
+Speak clearly, use legal references, disclaim legal advice, and ask clarifying questions if needed. Default jurisdiction is the U.S.
+"""]
     }
 
     if "messages" not in st.session_state:
@@ -160,7 +145,7 @@ Default jurisdiction: United States (unless the user specifies otherwise).
             response = model.generate_content(st.session_state.messages)
             reply = response.text
             st.session_state.messages.append({"role": "model", "parts": [reply]})
-            st.session_state.chat_history.append({"role": "bot", "parts": [reply]})
+            st.session_state.chat_history.append({"role": "model", "parts": [reply]})
 
             os.makedirs("logs", exist_ok=True)
             with open(f"logs/{st.session_state.user_id}.txt", "a", encoding="utf-8") as f:
@@ -170,11 +155,13 @@ Default jurisdiction: United States (unless the user specifies otherwise).
         except Exception as e:
             st.error(f"❌ Error: {str(e)}")
 
+    # === Reset Button ===
     if st.button("🗑️ Reset Chat"):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
 
+    # === PDF Upload ===
     uploaded_file = st.file_uploader("📄 Upload a PDF", type=["pdf"])
     if uploaded_file:
         file_name = uploaded_file.name
@@ -186,10 +173,15 @@ Default jurisdiction: United States (unless the user specifies otherwise).
                 "role": "user",
                 "parts": [f"📄 Extracted from '{file_name}':\n{short_text}"]
             })
+            st.session_state.messages.append({
+                "role": "user",
+                "parts": [f"📄 Extracted from '{file_name}':\n{short_text}"]
+            })
             st.session_state.uploaded_docs.append(file_name)
             st.session_state.uploaded_texts[file_name] = extracted
             st.rerun()
 
+    # === PDF Preview Sidebar ===
     if st.session_state.uploaded_docs:
         preview_html = "<div id='right-panel'><h4>📄 Uploaded Docs</h4>"
         for doc in st.session_state.uploaded_docs:
