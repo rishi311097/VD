@@ -75,7 +75,7 @@ elif st.session_state.view == "chat":
             # Ask the current question
             if not st.session_state.chat_history or st.session_state.chat_history[-1]["role"] == "user":
                 st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
-                # st.rerun()
+                st.rerun()
 
             # Handle user input for each step
             if step == 0:
@@ -113,7 +113,7 @@ elif st.session_state.view == "chat":
             elif step == 4:
                 st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
                 st.session_state.onboarding_complete = True
-                st.rerun()
+                # st.rerun()
 
     if not st.session_state.onboarding_complete:
         handle_onboarding()
