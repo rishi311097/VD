@@ -145,20 +145,20 @@ Speak clearly, use legal references, disclaim legal advice, and ask clarifying q
     #         st.session_state.chat_history.append({"role": "model", "parts": [initial_greeting]})
     #         st.session_state.initial_greeting_sent = True
     #         st.rerun()
-    user_input = st.text_input("💬 How can I assist you today?", key=f"chat_input_{len(st.session_state['messages'])}")
-    if user_input:
-        st.session_state["messages"].append({"role": "user", "parts": user_input})
-        try:
-            response = model.generate_content(st.session_state["messages"])
-            st.session_state["messages"].append({"role": "model", "parts": response.text})
+    # user_input = st.text_input("💬 How can I assist you today?", key=f"chat_input_{len(st.session_state['messages'])}")
+    # if user_input:
+    #     st.session_state["messages"].append({"role": "user", "parts": user_input})
+    #     try:
+    #         response = model.generate_content(st.session_state["messages"])
+    #         st.session_state["messages"].append({"role": "model", "parts": response.text})
 
-            os.makedirs("logs", exist_ok=True)
-            with open(f"logs/{st.session_state['user_id']}.txt", "a", encoding="utf-8") as f:
-                f.write(f"\nUser: {user_input}\nBot: {response.text}\n")
+    #         os.makedirs("logs", exist_ok=True)
+    #         with open(f"logs/{st.session_state['user_id']}.txt", "a", encoding="utf-8") as f:
+    #             f.write(f"\nUser: {user_input}\nBot: {response.text}\n")
 
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
+    #         st.rerun()
+    #     except Exception as e:
+    #         st.error(f"Error: {str(e)}")
 
     # === Main Chat Input ===
     user_input = st.text_input("💬 How can I assist you today?")
