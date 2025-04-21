@@ -114,7 +114,6 @@ elif st.session_state.view == "chat":
                 st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
                 st.session_state.onboarding_complete = True
                 st.rerun()
-                st.stop()
 
     if not st.session_state.onboarding_complete:
         handle_onboarding()
