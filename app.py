@@ -143,7 +143,7 @@ Speak clearly, use legal references, disclaim legal advice, and ask clarifying q
         initial_greeting = "Hello. How can I assist you with your compliance and legal needs today? Please be aware that I am an AI and cannot provide legal advice. My responses are for informational purposes only and should not be substituted for the guidance of a licensed attorney."
         st.session_state.chat_history.append({"role": "model", "parts": [initial_greeting]})
         st.session_state.initial_greeting_sent = True
-        st.rerun()
+        # st.rerun()
 
     # === Main Chat Input ===
     user_input = st.text_input("💬 How can I assist you today?")
