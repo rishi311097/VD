@@ -175,8 +175,7 @@ These details should help you give tailored legal and tax guidance.
             os.makedirs("logs", exist_ok=True)
             with open(f"logs/{st.session_state.user_id}.txt", "a", encoding="utf-8") as f:
                 f.write(f"\nUser: {user_input}\nBot: {reply}\n")
-
-            # st.rerun()
+                st.rerun()
         except Exception as e:
             st.error(f"❌ Error: {str(e)}")
 
