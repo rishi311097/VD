@@ -4,7 +4,6 @@ import os
 import uuid
 from datetime import datetime
 from PyPDF2 import PdfReader
-import streamlit.components.v1 as components
 
 # === Configure API ===
 genai.configure(api_key=st.secrets["API_KEY"])
@@ -25,54 +24,77 @@ if "uploaded_docs" not in st.session_state:
     st.session_state.uploaded_docs = []
 if "uploaded_texts" not in st.session_state:
     st.session_state.uploaded_texts = {}
+if "view" not in st.session_state:
+    st.session_state.view = "main"  # Default view
 
-# === Title ===
-st.title("📚 VD - Compliance & Legal Assistant")
+# === Main Page ===
+if st.session_state.view == "main":
+    st.set_page_config(page_title="Legal Assistant", layout="wide")
+    st.title("📚 VD - Compliance & Legal Assistant")
+    st.markdown("#### Simplifying Regulations, One Chat at a Time.")
+    st.markdown("""
+    Welcome to VD Compliance & Legal Assistant – your AI-powered helper for navigating U.S. corporate regulations, drafting legal documents, and summarizing compliance materials.
+    ---
+    ### 💡 Key Features:
+    - 📄 Summarize regulations like GDPR, HIPAA, SOX, PCI DSS
+    - 🧾 Draft NDAs, Privacy Policies, and Terms of Service
+    - 🧠 Answer compliance questions with U.S. legal context
+    - 📂 Analyze and preview PDF documents
+    - ✅ Provide clear, non-binding legal insights
+    """)
 
-# === Onboarding Prompts ===
-onboarding_questions = [
-    {"role": "bot", "text": "Hi there! What's your company name?"},
-    {"role": "bot", "text": "Great, and which sector or field are you in?"},
-    {"role": "bot", "text": "Got it. Is your company new or established?"},
-    {"role": "bot", "text": "When was the company established? (MM/DD/YYYY)"},
-    {"role": "bot", "text": "✅ Thanks! Launching the assistant..."},
-]
+    if st.button("Get Started"):
+        st.session_state.view = "chat"  # Switch to chat view
 
-def display_chat():
-    for message in st.session_state.chat_history:
-        if message["role"] == "bot":
-            st.markdown(f"🤖: {message['text']}")
-        else:
-            st.markdown(f"🦁: {message['text']}")
+# === Chatbot Page ===
+elif st.session_state.view == "chat":
+    # === Title ===
+    st.title("📚 VD - Compliance & Legal Assistant")
 
-def handle_onboarding():
-    display_chat()
-    step = st.session_state.step
+    # === Onboarding Prompts ===
+    onboarding_questions = [
+        {"role": "bot", "text": "Hi there! What's your company name?"},
+        {"role": "bot", "text": "Great, and which sector or field are you in?"},
+        {"role": "bot", "text": "Got it. Is your company new or established?"},
+        {"role": "bot", "text": "When was the company established? (MM/DD/YYYY)"},
+        {"role": "bot", "text": "✅ Thanks! Launching the assistant..."},
+    ]
 
-    if step == 0:
-        if onboarding_questions[0] not in st.session_state.chat_history:
-            st.session_state.chat_history.append(onboarding_questions[0])
-        company_name = st.text_input("Your company name")
-        if company_name:
-            st.session_state.chat_history.append({"role": "user", "text": company_name})
-            st.session_state.company_data["company_name"] = company_name
-            st.session_state.step += 1
-            st.rerun()
+    def display_chat():
+        for message in st.session_state.chat_history:
+            if message["role"] == "bot":
+                st.markdown(f"🤖: {message['text']}")
+            else:
+                st.markdown(f"🦁: {message['text']}")
 
-    elif step == 1:
-        if onboarding_questions[1] not in st.session_state.chat_history:
-            st.session_state.chat_history.append(onboarding_questions[1])
-        sector = st.text_input("Your sector or field")
-        if sector:
-            st.session_state.chat_history.append({"role": "user", "text": sector})
-            st.session_state.company_data["sector"] = sector
-            st.session_state.step += 1  # Move to the next step
-            st.rerun()
+    def handle_onboarding():
+        display_chat()
+        step = st.session_state.step
 
-    elif step == 2:
-        if onboarding_questions[2] not in st.session_state.chat_history:
-            st.session_state.chat_history.append(onboarding_questions[2])
-        status = st.selectbox("New or Established?", ["Select an option", "New", "Established"])
+        if step == 0:
+            if onboarding_questions[0] not in st.session_state.chat_history:
+                st.session_state.chat_history.append(onboarding_questions[0])
+            company_name = st.text_input("Your company name")
+            if company_name:
+                st.session_state.chat_history.append({"role": "user", "text": company_name})
+                st.session_state.company_data["company_name"] = company_name
+                st.session_state.step += 1
+                st.rerun()
+
+        elif step == 1:
+            if onboarding_questions[1] not in st.session_state.chat_history:
+                st.session_state.chat_history.append(onboarding_questions[1])
+            sector = st.text_input("Your sector or field")
+            if sector:
+                st.session_state.chat_history.append({"role": "user", "text": sector})
+                st.session_state.company_data["sector"] = sector
+                st.session_state.step += 1  # Move to the next step
+                st.rerun()
+
+        elif step == 2:
+            if onboarding_questions[2] not in st.session_state.chat_history:
+                st.session_state.chat_history.append(onboarding_questions[2])
+            status = st.selectbox("New or Established?", ["Select an option", "New", "Established"])
         if status != "Select an option":  # Check if the user has made a selection
             st.session_state.chat_history.append({"role": "user", "text": status})
             st.session_state.company_data["status"] = status
