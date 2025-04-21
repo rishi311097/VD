@@ -110,7 +110,7 @@ elif st.session_state.view == "chat":
             elif step == 4:
                 st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
                 st.session_state.onboarding_complete = True
-                # No immediate rerun here. The next rerun will happen when the user types in the chat.
+                st.rerun()
 
     if not st.session_state.onboarding_complete:
         handle_onboarding()
@@ -135,6 +135,7 @@ Speak clearly, use legal references, disclaim legal advice, and ask clarifying q
 
     display_chat()
 
+    # === Main Chat Input (Displayed unconditionally when onboarding is complete) ===
     user_input = st.text_input("💬 How can I assist you today?")
     if user_input:
         # Inject onboarding context BEFORE user query, only once after onboarding
