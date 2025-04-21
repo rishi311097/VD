@@ -144,6 +144,9 @@ def home():
         st.markdown(horizontal_bar, True)
         sidebar_logo = Image.open("VD.jpg").resize((300, 390))
         st.image(sidebar_logo, use_container_width='auto')
+        if not st.session_state.onboarding_complete:
+            handle_onboarding()
+            st.stop()
 
     st.title("📚 Welcome to VD - Compliance & Legal Assistant")
     st.markdown(horizontal_bar, True)
@@ -157,10 +160,6 @@ def home():
     with col1:
         st.subheader("📌 Getting Started")
         st.markdown(horizontal_bar, True)
-
-        if not st.session_state.onboarding_complete:
-            handle_onboarding()
-            st.stop()
 
         st.markdown("✅ Onboarding complete. You can now launch the assistant.")
         if st.button("💬 Ask VD"):
