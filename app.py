@@ -84,7 +84,7 @@ elif st.session_state.view == "chat":
                     st.session_state.chat_history.append({"role": "user", "parts": [company_name]})
                     st.session_state.company_data["company_name"] = company_name
                     st.session_state.step += 1
-                    st2.rerun()
+                    st.rerun()
             elif step == 1:
                 sector = st.text_input(onboarding_questions[step])
                 if sector:
