@@ -98,7 +98,7 @@ elif st.session_state.view == "chat":
                     st.session_state.chat_history.append({"role": "user", "parts": [status]})
                     st.session_state.company_data["status"] = status
                     st.session_state.step += 1
-                    st3.rerun()
+                    st.rerun()
             elif step == 3:
                 date_input = st.text_input(onboarding_questions[step])
                 if date_input:
@@ -113,7 +113,8 @@ elif st.session_state.view == "chat":
             elif step == 4:
                 st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
                 st.session_state.onboarding_complete = True
-                st5.rerun()
+                st.rerun()
+                st.stop()
 
     if not st.session_state.onboarding_complete:
         handle_onboarding()
