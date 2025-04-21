@@ -107,7 +107,7 @@ elif st.session_state.view == "chat":
                         st.session_state.chat_history.append({"role": "user", "parts": [date_input]})
                         st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
                         st.session_state.step += 1
-                        st4.rerun()
+                        st.rerun()
                     except ValueError:
                         st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
             elif step == 4:
