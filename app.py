@@ -59,6 +59,9 @@ elif st.session_state.view == "chat":
         "✅ Thanks! Launching the assistant..."
     ]
 
+    if "initial_greeting_sent" not in st.session_state:
+        st.session_state.initial_greeting_sent = False
+
     def display_chat():
         for message in st.session_state.chat_history:
             role = "🤖" if message["role"] == "model" else "🦁"
@@ -110,7 +113,7 @@ elif st.session_state.view == "chat":
             elif step == 4:
                 st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
                 st.session_state.onboarding_complete = True
-                # st.rerun()
+                st.rerun()
 
     if not st.session_state.onboarding_complete:
         handle_onboarding()
@@ -135,11 +138,18 @@ Speak clearly, use legal references, disclaim legal advice, and ask clarifying q
 
     display_chat()
 
-    # === Main Chat Input (Displayed unconditionally when onboarding is complete) ===
+    # Send initial greeting only once after onboarding
+    if st.session_state.onboarding_complete and not st.session_state.initial_greeting_sent:
+        initial_greeting = "Hello. How can I assist you with your compliance and legal needs today? Please be aware that I am an AI and cannot provide legal advice. My responses are for informational purposes only and should not be substituted for the guidance of a licensed attorney."
+        st.session_state.chat_history.append({"role": "model", "parts": [initial_greeting]})
+        st.session_state.initial_greeting_sent = True
+        st.rerun()
+
+    # === Main Chat Input ===
     user_input = st.text_input("💬 How can I assist you today?")
     if user_input:
         # Inject onboarding context BEFORE user query, only once after onboarding
-        if len(st.session_state.messages) == 1 + len(st.session_state.chat_history) and st.session_state.onboarding_complete:
+        if len(st.session_state.messages) == 1 + len(st.session_state.chat_history) and st.session_state.onboarding_complete and st.session_state.initial_greeting_sent:
             context_message = {
                 "role": "user",
                 "parts": [f"""
