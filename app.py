@@ -1,11 +1,13 @@
-import streamlit as st 
+# --- VD Legal Assistant (Single-file Streamlit App) ---
+import streamlit as st
 import google.generativeai as genai
 import os
 import uuid
 from PyPDF2 import PdfReader
 from PIL import Image
 import random
-from datetime import datetime
+import io
+from fpdf import FPDF
 
 # --- Page setup ---
 st.set_page_config(page_title="VD Legal Assistant", layout="wide")
@@ -20,181 +22,172 @@ st.session_state["theme"] = "dark" if toggle else "light"
 if st.session_state["theme"] == "dark":
     st.markdown("""
         <style>
-            body, .stApp { background-color: #121212; color: #e0e0e0; }
-            .css-18e3th9 { background-color: #1e1e1e; }
-            .css-1d391kg { color: white; }
+        html, body, .stApp {
+            background-color: #121212 !important;
+            color: #e0e0e0 !important;
+        }
+        .stMarkdown, .stText, .st-bw, .css-1d391kg, .css-10trblm, .css-1v3fvcr, .css-1cpxqw2 {
+            color: #e0e0e0 !important;
+        }
+        .stButton > button {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0 !important;
+            border: 1px solid #444 !important;
+        }
+        .stTextInput input, .stTextArea textarea {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+        }
+        .stSelectbox div[data-baseweb="select"] {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+        }
+        #right-panel {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+            border-left: 1px solid #444 !important;
+        }
+        .pdf-preview {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+        }
+        hr {
+            border-top: 1px solid #555 !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
-# --- State setup ---
+# --- Session State ---
 if "page" not in st.session_state:
     st.session_state.page = "home"
-
 if "user_id" not in st.session_state:
     st.session_state.user_id = str(uuid.uuid4())
+if "onboarding_data" not in st.session_state:
+    st.session_state["onboarding_data"] = {
+        "company_name": "",
+        "industry": "",
+        "age_type": "",
+        "state": "",
+        "founded_date": "",
+        "completed": False
+    }
 
-if "messages" not in st.session_state:
-    st.session_state["messages"] = [{
-        "role": "user",
-        "parts": """
-You are a Compliance and Legal Assistant expert, purpose-built to support legal professionals, compliance officers, and corporate teams in the United States. You possess comprehensive knowledge of U.S. corporate law, data protection regulations, financial compliance frameworks, and sector-specific obligations.
-
-Your core responsibilities include:
-- Interpreting and summarizing U.S. federal, state, and industry-specific regulations (e.g., GDPR, HIPAA, SOX, CCPA, PCI DSS, SEC, FTC).
-- Drafting precise and professional legal and compliance documents (e.g., privacy policies, terms of service, NDAs, vendor contracts, audit checklists).
-- Identifying legal and regulatory risks and recommending practical, risk-based mitigation strategies.
-- Assisting with regulatory reporting, compliance tracking, due diligence, and audit preparedness.
-- Answering legal and compliance questions with clarity and accuracy, defaulting to U.S. legal context unless otherwise specified.
-
-Guidelines for responses:
-- Use clear, formal, and business-appropriate language suitable for legal and corporate audiences.
-- Include citations or references to relevant laws, codes, or regulatory bodies where applicable.
-- Always include a disclaimer that your responses are for informational purposes only and do not constitute legal advice.
-- Proactively request clarification when a query lacks sufficient detail or jurisdictional context.
-
-Default jurisdiction: United States (unless the user specifies otherwise).
-"""
-    }]
-
-if "uploaded_docs" not in st.session_state:
-    st.session_state["uploaded_docs"] = []
-
-if "uploaded_texts" not in st.session_state:
-    st.session_state["uploaded_texts"] = {}
-
-# --- Gemini setup ---
+# --- Gemini Setup ---
 genai.configure(api_key=st.secrets["API_KEY"])
 model = genai.GenerativeModel("gemini-2.0-flash")
 
-# --- Onboarding setup ---
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "company_data" not in st.session_state:
-    st.session_state.company_data = {}
-if "step" not in st.session_state:
-    st.session_state.step = 0
-if "onboarding_complete" not in st.session_state:
-    st.session_state.onboarding_complete = False
-
-onboarding_questions = [
-    "Hi there! What's your company name?",
-    "Great, and which sector or field are you in?",
-    "Got it. Is your company new or established?",
-    "When was the company established? (MM/DD/YYYY)",
-    "✅ Thanks! Launching the assistant..."
-]
-
-def display_chat():
-    for message in st.session_state.chat_history:
-        role = "🤖" if message["role"] == "model" else "🦁"
-        st.markdown(f"{role}: {message['parts'][0]}")
-
-def handle_onboarding():
-    display_chat()
-    step = st.session_state.step
-
-    if step < len(onboarding_questions):
-        if not st.session_state.chat_history or st.session_state.chat_history[-1]["role"] == "user":
-            st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
-            st.rerun()
-
-        if step == 0:
-            company_name = st.text_input(onboarding_questions[step], key="company_name_input")
-            if company_name:
-                st.session_state.chat_history.append({"role": "user", "parts": [company_name]})
-                st.session_state.company_data["company_name"] = company_name
-                st.session_state.step += 1
-                st.rerun()
-        elif step == 1:
-            sector = st.text_input(onboarding_questions[step], key="sector_input")
-            if sector:
-                st.session_state.chat_history.append({"role": "user", "parts": [sector]})
-                st.session_state.company_data["sector"] = sector
-                st.session_state.step += 1
-                st.rerun()
-        elif step == 2:
-            status = st.selectbox(onboarding_questions[step], ["Select an option", "New", "Established"], key="status_select")
-            if status != "Select an option":
-                st.session_state.chat_history.append({"role": "user", "parts": [status]})
-                st.session_state.company_data["status"] = status
-                st.session_state.step += 1
-                st.rerun()
-        elif step == 3:
-            date_input = st.text_input(onboarding_questions[step], key="date_input")
-            if date_input:
-                try:
-                    parsed_date = datetime.strptime(date_input.strip(), "%m/%d/%Y")
-                    st.session_state.chat_history.append({"role": "user", "parts": [date_input]})
-                    st.session_state.company_data["established_date"] = parsed_date.strftime("%Y-%m-%d")
-                    st.session_state.step += 1
-                    st.rerun()
-                except ValueError:
-                    st.error("❌ Please enter a valid date in MM/DD/YYYY format.")
-        elif step == 4:
-            st.session_state.chat_history.append({"role": "model", "parts": [onboarding_questions[step]]})
-            st.session_state.onboarding_complete = True
-            st.rerun()
-
-# --- Page 1: Landing View ---
+# --- Home Page ---
 def home():
     horizontal_bar = "<hr style='margin-top: 0; margin-bottom: 0; height: 1px; border: 1px solid #635985;'><br>"
 
     with st.sidebar:
-        st.subheader("🧠 VD - Legal Assistant")
-        st.markdown(horizontal_bar, True)
-        sidebar_logo = Image.open("VD.jpg").resize((300, 390))
-        st.image(sidebar_logo, use_container_width='auto')
-        if not st.session_state.onboarding_complete:
-            handle_onboarding()
-            st.stop()
-            st.markdown("✅ Onboarding complete. You can now launch the assistant.")
+        st.image("vdlogo.jpg", use_container_width='auto')
+        st.subheader("🧠 VD - Legal Assistant Onboarding")
+        ob = st.session_state["onboarding_data"]
+
+        if not ob["completed"]:
+            ob["company_name"] = st.text_input("🏢 What's your company name?", value=ob["company_name"])
+            ob["industry"] = st.text_input("💼 What industry are you in?", value=ob["industry"])
+            ob["age_type"] = st.selectbox("📈 Is your company new or established?", ["", "New", "Established"], index=["", "New", "Established"].index(ob["age_type"]) if ob["age_type"] else 0)
+            ob["state"] = st.text_input("🏢 Which state it is established?", value=ob["state"])
+            ob["founded_date"] = st.text_input("📅 When was it founded? (MM/DD/YYYY)", value=ob["founded_date"])
+
+            if all([ob["company_name"], ob["industry"], ob["age_type"], ob["state"], ob["founded_date"]]):
+                if st.button("✅ Submit Onboarding", key="submit_onboarding"):
+                    ob["completed"] = True
+                    st.success("🎉 Onboarding complete. Click 'Ask VD' to continue.")
+                    st.rerun()
+        else:
+            st.markdown(f"**Company:** {ob['company_name']}")
+            st.markdown(f"**Industry:** {ob['industry']}")
+            st.markdown(f"**State:** {ob['state']}")
+            st.markdown(f"**Founded:** {ob['founded_date']}")
+            st.markdown("✅ Onboarding complete.")
 
     st.title("📚 Welcome to VD - Compliance & Legal Assistant")
     st.markdown(horizontal_bar, True)
 
     col1, col2 = st.columns(2)
-
     with col2:
-        law_image = Image.open(random.choice(["vd1.jpg", "vd2.jpg", "vd3.jpg"])).resize((550, 550))
+        law_image = Image.open(random.choice(["vd1.jpg", "vd2.jpg", "VD.jpg"])).resize((550, 550))
         st.image(law_image, use_container_width='auto')
 
     with col1:
-        st.subheader("📌 Getting Started")
-        st.markdown(horizontal_bar, True)
+        hlp_dtl = f"""<span style="font-size: 24px;">
+        <ol>
+        <li style="font-size:15px;">📝 Onboard your company to personalize responses</li>
+        <li style="font-size:15px;">Upload contracts, NDAs, or policies in PDF format to get instant summaries or clause extraction.</li>
+        <li style="font-size:15px;">Type compliance-related questions (e.g., “What’s required under SOX §404?”) to get concise answers.</li>
+        <li style="font-size:15px;">Responses are legally styled, and include citations where applicable.</li>
+        <li style="font-size:15px;">All processing is session-based. Your files and queries are not saved or reused.</li>
+        <li style="font-size:15px;">VD defaults to U.S. legal context unless a specific jurisdiction is mentioned.</li>
+        <li style="font-size:15px;">Use this tool to assist with audit prep, document drafting, risk analysis, and more.</li>
+        </ol></span>"""
 
-        if st.button("💬 Ask VD"):
+        st.subheader("📌 What VD Can Do")
+        st.markdown(horizontal_bar, True)
+        st.markdown(hlp_dtl, unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        if st.button("💬 Ask VD", key="ask_vd_always"):
             st.session_state.page = "chat"
             st.rerun()
 
     st.markdown(horizontal_bar, True)
-    st.markdown("🔒 This AI assistant does not give legal advice.", unsafe_allow_html=True)
     st.markdown("<strong>Built by: 😎 KARAN YADAV, RUSHABH MAKWANA, ANISH AYARE</strong>", unsafe_allow_html=True)
 
-# --- Page 2: Chatbot View ---
+# --- NEW: Function to generate the system onboarding context ---
+def get_system_prompt():
+    ob = st.session_state["onboarding_data"]
+    return {
+        "role": "user",
+        "parts": f"""
+You are a Compliance and Legal Assistant supporting the company **{ob['company_name']}** in the **{ob['industry']}** sector established in **{ob['state']}** state.
+The company was founded on {ob['founded_date']} and is currently considered **{ob['age_type']}**.
+
+You possess deep knowledge of U.S. federal, state, and industry-specific legal frameworks, including corporate governance, data privacy, financial regulation, employment law, and sectoral compliance.
+[... rest of your system prompt unchanged ...]
+"""
+    }
+
+# --- Chat Page ---
+def format_chat_history():
+    return "\n\n".join(
+        f"{'User' if m['role'] == 'user' else 'VD'}: {m['parts']}"
+        for m in st.session_state["messages"]
+    )
+
 def show_chat():
+    ob = st.session_state["onboarding_data"]
     st.title("📚 VD - Legal Chat Assistant")
 
-    if st.button("🔙 Back to Home"):
-        st.session_state.page = "home"
-        st.rerun()
+    if ob["company_name"]:
+        st.markdown(f"### 🏢 {ob['company_name']} ({ob['industry']})")
 
-    if st.button("🗑️ Reset Chat"):
-        st.session_state["messages"] = [st.session_state["messages"][0]]
-        st.session_state["uploaded_docs"] = []
-        st.session_state["uploaded_texts"] = {}
-        st.rerun()
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("🔙 Back to Home", key="go_home"):
+            st.session_state.page = "home"
+            st.rerun()
+    with col2:
+        if st.button("🗑️ Reset Chat", key="reset_chat"):
+            st.session_state["messages"] = []
+            st.session_state["uploaded_docs"] = []
+            st.session_state["uploaded_texts"] = {}
+            st.rerun()
 
-    # Chat history
-    for msg in st.session_state["messages"][1:]:
+    for msg in st.session_state["messages"]:
         role = "🧑" if msg["role"] == "user" else "🤖"
         st.markdown(f"**{role}:** {msg['parts']}")
 
-    # Input field
     user_input = st.text_input("💬 How can I assist you today?", key=f"chat_input_{len(st.session_state['messages'])}")
     if user_input:
         st.session_state["messages"].append({"role": "user", "parts": user_input})
+
         try:
-            response = model.generate_content(st.session_state["messages"])
+            # --- ✅ CHANGE: add onboarding context before generating response ---
+            full_convo = [get_system_prompt()] + st.session_state["messages"]
+            response = model.generate_content(full_convo)
             st.session_state["messages"].append({"role": "model", "parts": response.text})
 
             os.makedirs("logs", exist_ok=True)
@@ -205,23 +198,20 @@ def show_chat():
         except Exception as e:
             st.error(f"Error: {str(e)}")
 
-    # PDF upload
     uploaded_file = st.file_uploader("📄 Upload a PDF", type=["pdf"])
     if uploaded_file:
         file_name = uploaded_file.name
         if file_name not in st.session_state["uploaded_docs"]:
             reader = PdfReader(uploaded_file)
             extracted = "\n\n".join([page.extract_text() for page in reader.pages if page.extract_text()])
-            short_text = extracted[:3000]
             st.session_state["messages"].append({
                 "role": "user",
-                "parts": f"Extracted from uploaded PDF '{file_name}':\n{short_text}"
+                "parts": f"Extracted from uploaded PDF '{file_name}':\n{extracted}"
             })
             st.session_state["uploaded_docs"].append(file_name)
             st.session_state["uploaded_texts"][file_name] = extracted
             st.rerun()
 
-    # Preview Panel
     if st.session_state["uploaded_docs"]:
         st.markdown("""
         <style>
@@ -253,7 +243,34 @@ def show_chat():
         preview_html += "</div>"
         st.markdown(preview_html, unsafe_allow_html=True)
 
-# --- Run the app ---
+    with st.expander("📤 Export Chat", expanded=False):
+        export_format = st.selectbox("Choose format:", ["Text (.txt)", "PDF (.pdf)"])
+        chat_text = format_chat_history()
+
+        if export_format == "Text (.txt)":
+            st.download_button(
+                "📥 Download Chat as TXT",
+                data=chat_text,
+                file_name="vd_chat_history.txt",
+                mime="text/plain"
+            )
+        elif export_format == "PDF (.pdf)":
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.set_font("Arial", size=12)
+            for line in chat_text.split("\n"):
+                pdf.multi_cell(0, 10, line)
+            pdf_bytes = pdf.output(dest="S").encode("latin1")
+            pdf_buffer = io.BytesIO(pdf_bytes)
+            st.download_button(
+                "📥 Download Chat as PDF",
+                data=pdf_buffer,
+                file_name="vd_chat_history.pdf",
+                mime="application/pdf"
+            )
+
+# --- Run App ---
 if st.session_state.page == "home":
     home()
 else:
